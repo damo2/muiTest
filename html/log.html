@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<title></title>
+		<link href="../css/mui.min.css" rel="stylesheet" />
+		<link href="../css/style.css" rel="stylesheet" />
+		<style>
+			.h_input {
+				margin-left: 16px;
+			}
+			
+			.mui-input-group {
+				margin-top: 64px;
+				padding-top: 8px;
+				padding-bottom: 8px;
+			}
+			
+			#logbtn {
+				margin-top: 64px;
+			}
+		</style>
+
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">登录</h1>
+		</header>
+		<div class="mui-content">
+			<form class="mui-input-group">
+				<h5 class="h_input">用户名</h5>
+				<div class="mui-input-row">
+					<input id="username" type="text" class="mui-input-clear mui-input" placeholder="请输入用户名" />
+				</div>
+				<h5 class="h_input">密码</h5>
+				<div class="mui-input-row">
+					<input id="password" type="password" class="mui-input-clear mui-input" placeholder="请输入密码" />
+				</div>
+			</form>
+			<button id="logbtn" class="mui-btn mui-btn-block logbtn">登录</button>
+
+			<a href="tab-webview-main.html"><button id="logbtn" class="mui-btn mui-btn-block logbtn">不登录直接进入</button></a>
+		</div>
+
+	</body>
+
+	<script src="../js/mui.min.js"></script>
+	<script src="../js/jquery-1.8.2.min.js"></script>
+	<script src="../js/app.js"></script>
+	<script src="../js/app_config.js"></script>
+	<script src="../js/app_savedata.js"></script>
+	<script>
+		(function($, doc) {
+			$.init({
+				statusBarBackground: '#E91E63'
+			});
+			$.plusReady(function() {
+				var main_loaded_flag = false;
+				var usernameBox = document.getElementById("username");
+				var passwordBox = document.getElementById("password");
+				var loginButton = document.getElementById("logbtn")
+				var uname = localStorage.getItem("username");
+				if(uname != null) {
+					var pwd = localStorage.getItem("passowrd");
+					usernameBox.value = uname;
+					passwordBox.value = pwd;
+				}
+
+				loginButton.addEventListener("tap",
+					function(event) {
+						login();
+					});
+				/**
+				 * 登录
+				 */
+				function login() {
+					plus.nativeUI.showWaiting(); //这里是开始显示原生等待框
+					$.ajax({
+						url: serverIP + '/adminLoginMobi',
+						type: 'post',
+						timeout: requestOutTime, //超时时间设置，单位毫秒
+						data: {
+							adminName: usernameBox.value,
+							password: passwordBox.value
+						},
+						success: function(data, status) {
+							console.log(data);
+							var dataJson = eval("(" + data + ")");
+							if(dataJson.code == 1001) {
+								localStorage.setItem("username", usernameBox.value);
+								localStorage.setItem("passowrd", passwordBox.value);
+								setAdmin(dataJson.admin);
+								setCookie(dataJson.cookie);
+								toMain(dataJson.admin);
+							} else {
+								mui.toast("失败");
+							}
+						},
+						complete: function(XMLHttpRequest, status) { //请求完成后最终执行参数
+							plus.nativeUI.closeWaiting(); //这里监听页面是否加载完毕，完成后关闭等待框
+							if(status == 'timeout') { //超时,status还有success,error等值的情况
+								mui.alert('超时', '失败', function() {});
+							} else if(status == 'error') {　　　
+								mui.alert('异常', '失败', function() {});　　　　
+							}
+						}
+					});
+				}
+				var toMain = function() { //使用定时器的原因： 可能执行太快，main页面loaded事件尚未触发就执行自定义事件，此时必然会失败
+					var id = setInterval(function() {
+						mui.openWindow({
+							url: "tab-webview-main.html",
+							id: "tab-webview-main",
+							waiting: {
+								autoShow: false
+							},
+							extras: {
+								name: 'testapp'
+							}
+						});
+
+					}, 20);
+				};
+
+			});
+		}(mui, document))
+	</script>
+
+</html>

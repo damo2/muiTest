@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title>Hello MUI</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1,maximum-scale=1,user-scalable=no">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		<link rel="stylesheet" href="../css/mui.min.css">
+		<style>
+			html,
+			body {
+				background-color: #efeff4;
+			}
+			
+			.mui-slider-indicator {
+				top: 45px !important;
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">任务</h1>
+		</header>
+		<div class="mui-content">
+			<div id="bar" class="mui-slider-indicator mui-segmented-control mui-segmented-control-inverted">
+				<a id="0" class="mui-control-item mui-active">今日</a>
+				<a id="1" class="mui-control-item">紧急</a>
+				<a id="2" class="mui-control-item">重要</a>
+				<a id="3" class="mui-control-item">未完成</a>
+				<a id="4" class="mui-control-item">以完成</a>
+			</div>
+
+			<div id="pullrefresh" class="mui-scroll-wrapper">
+				<div class="mui-scroll-wrapper">
+					<div class="mui-scroll">
+						<ul class="mui-table-view mui-table-view-chevron">
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+	<script src="../js/mui.min.js"></script>
+	<script src="../js/jquery-1.8.2.min.js"></script>
+	<script src="../js/mui.pullToRefresh.js"></script>
+	<script src="../js/mui.pullToRefresh.material.js"></script>
+	<script src="../js/app.js"></script>
+	<script src="../js/app_request.js"></script>
+	<script src="../js/app_config.js"></script>
+	<script src="../js/app_constant.js"></script>
+	<script src="../js/app_netvalue.js"></script>
+	<script src="../js/app_savedata.js"></script>
+	<script>
+		mui.init({
+			
+
+			swipeBack: false,
+			pullRefresh: {
+				container: '#pullrefresh',
+				down: {
+					callback: pulldownRefresh
+				},
+				up: {
+					contentrefresh: '正在加载...',
+					callback: pullupRefresh
+				}
+			}
+		});
+		mui.ready(function() {
+			scorllInit();
+			getData();
+		});
+		var network = true;
+		if(mui.os.plus) {
+			mui.plusReady(function() {
+				if(plus.networkinfo.getCurrentType() == plus.networkinfo.CONNECTION_NONE) {
+					network = false;
+				}
+			});
+		}
+
+		function scorllInit() {
+			mui('.mui-control-content').each(function() {
+				this.style.height = info[1] - 84 + 'px';
+			});
+			mui('.mui-scroll-wrapper').each(function(k, v) {
+				mui(v).scroll({
+					deceleration: (mui.os.ios ? 0.003 : 0.0006)
+				});
+			});
+		}
+
+		var iPage = 0;
+		var iRefreshStatu = iRefresh;
+		var iAdminId = getAdminId();
+		var iBusinessId = getBusinessId();
+		var iType = iTaskTypeToday;
+		/**
+		 * 下拉刷新具体业务实现
+		 */
+		function pulldownRefresh() {
+			setTimeout(function() {
+				iRefreshStatu = iRefresh;
+				getData();
+			}, 1000);
+		}
+
+		/**
+		 * 上拉加载具体业务实现
+		 */
+		function pullupRefresh() {
+			setTimeout(function() {
+				iRefreshStatu = iLoad;
+				getData();
+			}, 1000);
+		}
+		var aTypes = [
+			iTaskTypeToday,
+			iTaskLevelUrgent,
+			iTaskLevelImportant,
+			iTaskStatuUndone,
+			iTaskStatuDone
+		];
+		mui('.mui-bar').on('tap', '.mui-control-item', function() {
+			//获取id
+			var id = this.getAttribute("id");
+			var iTypeSelect = aTypes[id];
+			if(iTypeSelect != iType) {
+				iType = iTypeSelect;
+				iRefreshStatu = iRefresh;
+				mui('#pullrefresh').pullRefresh().refresh(true);
+				getData();
+			}
+		});
+
+		function getData() { //请求数据
+			if(network) {
+				taskRequest.getTaskList(iBusinessId, iAdminId, iType, iPage, suc, fail);
+			} else {
+				mui.toast("当前网络不给力，请稍后再试");
+			}
+
+		};
+		//请求成功
+		function suc(result) {
+			if(iRefreshStatu == iLoad) {
+				iPage++;
+			} else {
+				iPage = 1;
+			}
+			console.log('suc');
+			setdata(result);
+			mui('#pullrefresh').pullRefresh().endPulldownToRefresh(); //refresh completed
+			mui('#pullrefresh').pullRefresh().endPullupToRefresh(result == null || result.array == null);
+		}
+		//请求失败
+		function fail(XMLHttpRequest) {
+			console.log(JSON.stringify(XMLHttpRequest));
+			mui.toast(XMLHttpRequest.status);
+			mui('#pullrefresh').pullRefresh().endPulldownToRefresh(); //refresh completed
+			mui('#pullrefresh').pullRefresh().endPullupToRefresh(false);
+		}
+
+		function setdata(data) {
+			var table = document.body.querySelector('.mui-table-view');
+			if(iRefreshStatu = iRefresh) {
+				table.innerHTML = "";
+			}
+			var listTask = data.array;
+			for(var key in listTask) { //第一层循环取到各个list
+				var task = listTask[key];
+				var step = task.step;
+				var content = task.content;
+				var li = document.createElement('li');
+				li.className = 'mui-table-view-cell';
+				li.innerHTML = '<a class="mui-navigate-right">' + content + '</a>';
+				//下拉刷新，新纪录插到最前面；
+				table.insertBefore(li, table.firstChild);
+			}
+		}
+	</script>
+
+</html>
